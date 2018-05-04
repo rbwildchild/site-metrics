@@ -15,7 +15,7 @@ import spray.json.DefaultJsonProtocol._
 
 import scala.concurrent.{Future, Promise}
 
-object CdpWS {
+object CdpClient {
 
   implicit object AnyJsonFormat extends JsonFormat[Any] {
     def write(x: Any) = x match {

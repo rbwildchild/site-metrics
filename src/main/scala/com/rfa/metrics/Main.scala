@@ -1,23 +1,33 @@
 package com.rfa.metrics
 
 
-import com.rfa.metrics.webdriver.driver.ChromeWebDriver
-import com.rfa.metrics.webdriver.helper.WebDriverHelper
 
+import akka.actor.Props
+import akka.pattern.ask
+import akka.util.Timeout
+import com.rfa.metrics.actor.Tester
+import com.rfa.metrics.test.model.{PageLoadTest, TestConfiguration}
+import java.util.concurrent.TimeUnit
+
+import com.rfa.metrics.actor.Tester.{BrowserReady, ExecuteTest}
+
+import scala.concurrent.Await
+import scala.util.{Failure, Success}
+import scala.concurrent.ExecutionContext.Implicits.global
 
 object Main extends App {
 
-  val driver = ChromeWebDriver()
-  val helper = WebDriverHelper(driver)
+  val testerActor = system.actorOf(Props(classOf[Tester]), "Tester")
+  implicit val timeout = Timeout(5, TimeUnit.SECONDS)
+  val start = testerActor ? Tester.StartBrowser()
+  start.onComplete {
+    case s: Success[BrowserReady] => executeTest()
+    case f: Failure[AnyRef] => println(f)
+  }
 
-  val url = "https://itunes.apple.com"
-  val timeout = 30
+  private def executeTest(): Unit = {
+    testerActor ! ExecuteTest(new PageLoadTest(new TestConfiguration("https://itunes.apple.com", 30)))
+  }
 
-  var result = helper.loadPage(url, timeout)
-  helper.sleep(5000)
-
-  println(result)
-
-  //driver.quit()
 }
 

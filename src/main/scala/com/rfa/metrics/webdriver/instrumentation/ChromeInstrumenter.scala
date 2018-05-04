@@ -1,8 +1,8 @@
-package com.rfa.metrics.webdriver.helper
+package com.rfa.metrics.webdriver.instrumentation
 
 import java.util.concurrent.TimeUnit
 
-import com.rfa.metrics.cdp.CdpWS
+import com.rfa.metrics.cdp.CdpClient
 import com.rfa.metrics.cdp.model.CdpConnection
 import com.rfa.metrics.timing.Time
 import com.rfa.metrics.webdriver.operation.TimedOperation
@@ -10,14 +10,14 @@ import org.openqa.selenium.{By, WebDriver}
 import spray.json.{DefaultJsonProtocol, JsArray, JsonParser}
 import DefaultJsonProtocol._
 
-object WebDriverHelper {
+object ChromeInstrumenter {
 
-  def apply(webDriver: WebDriver): WebDriverHelper = {
-    new WebDriverHelper(webDriver)
+  def apply(webDriver: WebDriver): ChromeInstrumenter = {
+    new ChromeInstrumenter(webDriver)
   }
 }
 
-class WebDriverHelper(webDriver: WebDriver) {
+class ChromeInstrumenter(webDriver: WebDriver) {
 
   object MyJsonProtocol extends DefaultJsonProtocol {
     implicit val cdpFormat = jsonFormat6(CdpConnection)
@@ -39,7 +39,7 @@ class WebDriverHelper(webDriver: WebDriver) {
 
   def loadPage (url: String, timeout: Long): (String, Time) = {
     val res = TimedOperation.doTimed(load(url, timeout))
-    CdpWS.connect(getCDPUrl())
+    CdpClient.connect(getCDPUrl())
     res
   }
 
