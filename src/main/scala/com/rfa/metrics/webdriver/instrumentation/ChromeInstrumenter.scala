@@ -2,7 +2,7 @@ package com.rfa.metrics.webdriver.instrumentation
 
 import java.util.concurrent.TimeUnit
 
-import com.rfa.metrics.devtools.DevtoolsClient
+import com.rfa.metrics.devtools.Devtools
 import com.rfa.metrics.timing.Time
 import com.rfa.metrics.webdriver.operation.TimedOperation
 import org.openqa.selenium.{By, WebDriver}
@@ -11,7 +11,7 @@ object ChromeInstrumenter {
 
   def apply(driver: WebDriver): ChromeInstrumenter = {
     val port = getCDPPort(driver)
-    val devtoolsClient = DevtoolsClient(port)
+    val devtoolsClient = Devtools(port)
     openBlank(driver)
     new ChromeInstrumenter(driver, devtoolsClient)
   }
@@ -28,11 +28,12 @@ object ChromeInstrumenter {
   }
 }
 
-class ChromeInstrumenter(webDriver: WebDriver, devtoolsClient: DevtoolsClient) {
+class ChromeInstrumenter(webDriver: WebDriver, devtools: Devtools) {
 
   implicit val driver = webDriver
 
   private def load (url: String, timeout: Long): String = {
+    val devtoolsClient: Devtools.Client = devtools.attachTab()
     driver.manage().timeouts().implicitlyWait(timeout, TimeUnit.SECONDS)
     driver.navigate().to(url)
     driver.getTitle
