@@ -34,8 +34,12 @@ class ChromeInstrumenter(webDriver: WebDriver, devtools: Devtools) {
 
   private def load (url: String, timeout: Long): String = {
     val devtoolsClient: Devtools.Client = devtools.attachTab()
+    devtoolsClient.startRecord()
+
     driver.manage().timeouts().implicitlyWait(timeout, TimeUnit.SECONDS)
     driver.navigate().to(url)
+
+
     driver.getTitle
   }
 

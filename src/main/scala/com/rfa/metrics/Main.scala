@@ -21,8 +21,7 @@ object Main extends App {
   implicit val timeout = Timeout(5, TimeUnit.SECONDS)
   val start = testerActor ? Tester.StartBrowser()
   start.onComplete {
-    case s: Success[BrowserReady] => //executeTest()
-      println(s)
+    case s: Success[BrowserReady] => executeTest()
     case f: Failure[AnyRef] => println(f)
   }
 

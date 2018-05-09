@@ -3,24 +3,24 @@ package com.rfa.metrics.cdp
 import java.util.concurrent.TimeUnit
 
 import akka.actor.ActorSystem
-import akka.Done
+import akka.{Done, NotUsed}
 import akka.http.scaladsl.Http
 import akka.stream.{ActorMaterializer, Attributes, OverflowStrategy}
 import akka.stream.scaladsl._
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.ws._
 import com.rfa.metrics.cdp.model.CdpCommand
-import spray.json.{DefaultJsonProtocol, JsFalse, JsNumber, JsString, JsTrue, JsValue, JsonFormat, JsonParser, RootJsonFormat}
+import com.rfa.metrics.devtools.model.CdpResponse
+import spray.json.{DefaultJsonProtocol, JsFalse, JsNumber, JsObject, JsString, JsTrue, JsValue, JsonFormat, JsonParser, JsonReader, RootJsonFormat}
 import spray.json.DefaultJsonProtocol._
 
-import scala.concurrent.duration.Duration
-import scala.concurrent.{Await, Future}
+import scala.concurrent.{Await, Future, Promise}
 
 object CdpClient {
 
   implicit object AnyJsonFormat extends JsonFormat[Any] {
     def write(x: Any) = x match {
-      case n: Int => JsNumber(n)
+      case n: Int  => JsNumber(n)
       case s: String => JsString(s)
       case b: Boolean if b == true => JsTrue
       case b: Boolean if b == false => JsFalse
@@ -30,47 +30,35 @@ object CdpClient {
       case JsString(s) => s
       case JsTrue => true
       case JsFalse => false
+      case JsObject(s) => s
+      case _ => None
     }
   }
 
-  implicit val cdpMessageFormat: RootJsonFormat[CdpCommand] = jsonFormat3(CdpCommand)
+  implicit val cdpCommandFormat: RootJsonFormat[CdpCommand] = jsonFormat3(CdpCommand)
+  implicit val cdpResponseFormat: RootJsonFormat[CdpResponse] = jsonFormat4(CdpResponse)
 
-  val inst = List(
-    new CdpCommand(
-      2,
-      "Network.enable"
-    )
-    ,
-    new CdpCommand(
-      3,
-      "Page.navigate",
-      Option(Map(
-        ("url", "https://twitter.com")
-      ))
-    )
-  )
-
-  def apply(url: String): CdpClient = new CdpClient(connect(url))
-
-  private def connect(url: String): Tuple2[SourceQueue[CdpCommand], SinkQueue[String]] = {
+  def connect(url: String, commands: List[CdpCommand]): Unit = {
     {
 
       implicit val system = ActorSystem()
       implicit val materializer = ActorMaterializer()
       import system.dispatcher
 
-      val incoming = Flow[Message].map {
-        case textStrict: TextMessage.Strict => textStrict.text
-      }.toMat(Sink.queue())(Keep.right)
+      val processor: Sink[CdpResponse, Future[Done]] = Flow[CdpResponse].toMat(Sink.foreach(println))(Keep.right)
 
-      val outgoing: Source[CdpCommand, SourceQueueWithComplete[CdpCommand]] =
-        Source.queue[CdpCommand](1, OverflowStrategy.dropHead)
+      val incoming: Sink[Message, Future[Done]] = Flow[Message].map {
+        case t: TextMessage.Strict => cdpResponseFormat.read(JsonParser(t.text))
+      }.toMat(processor)(Keep.right)
+
+      val outgoing: Source[CdpCommand, Promise[Option[CdpCommand]]] =
+        Source(commands).concatMat(Source.maybe[CdpCommand])(Keep.right)
 
       val webSocketFlow = Http().webSocketClientFlow(WebSocketRequest(url))
 
       val ((sourceQueue, upgradeResponse), sinkQueue) =
       outgoing
-        .map(c => TextMessage(cdpMessageFormat.write(c).toString()))
+        .map(c => TextMessage(cdpCommandFormat.write(c).toString()))
         .viaMat(webSocketFlow)(Keep.both)
         .toMat(incoming)(Keep.both)
         .run()
@@ -85,13 +73,6 @@ object CdpClient {
 
       connected.onComplete(println)
 
-      (sourceQueue, sinkQueue)
     }
   }
-}
-
-class CdpClient(flow: Tuple2[SourceQueue[CdpCommand], SinkQueue[String]]) {
-  def sendCommand(cdpCommand: CdpCommand) = flow._1.offer(cdpCommand)
-
-  def next(): String = Await.result(flow._2.pull(),Duration(1, TimeUnit.SECONDS)).get
 }
