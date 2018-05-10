@@ -1,11 +1,19 @@
 package com.rfa.metrics.devtools
 
-import com.rfa.metrics.devtools.model.CdpConnection
+import java.util.concurrent.TimeUnit
+
+import com.rfa.metrics.devtools.model.{CdpConnection, CdpResponse}
 import spray.json.DefaultJsonProtocol.jsonFormat6
 import spray.json.{DefaultJsonProtocol, JsArray, JsonParser}
 import DefaultJsonProtocol._
 import com.rfa.metrics.cdp.CdpClient
 import com.rfa.metrics.cdp.model.CdpCommand
+import com.rfa.metrics.devtools.processor.LogProcessor
+
+import scala.concurrent.{Await, Future}
+import scala.concurrent.duration.Duration
+import scala.util.{Failure, Success}
+import scala.concurrent.ExecutionContext.Implicits.global
 
 object Devtools {
   val commands = List(
@@ -19,9 +27,19 @@ object Devtools {
     new Devtools(cdpPort)
   }
 
-  class Client(url: String) {
+  class Client(cdpClient: CdpClient) {
     def startRecord() = {
-      CdpClient.connect(url, commands)
+      commands.foreach(cdpClient.sendCommand)
+    }
+
+    def stopRecord() = {
+      cdpClient.terminateFlow(Duration(3, TimeUnit.SECONDS)).onComplete {
+        case s: Success[List[CdpResponse]] => {
+          val har = LogProcessor(s.get).getHAR()
+          println("HAR: " + har)
+        }
+        case f: Failure[List[CdpResponse]] => println("Fail!: " + f)
+      }
     }
   }
 }
@@ -30,7 +48,7 @@ class Devtools(cdpPort: Int) {
   private implicit val cdpFormat = jsonFormat6(CdpConnection)
 
   def attachTab(): Devtools.Client = {
-    new Devtools.Client(getCurrentUrl())
+    new Devtools.Client(CdpClient(getCurrentUrl()))
   }
 
   private def getCurrentUrl(): String = {

@@ -39,7 +39,7 @@ class ChromeInstrumenter(webDriver: WebDriver, devtools: Devtools) {
     driver.manage().timeouts().implicitlyWait(timeout, TimeUnit.SECONDS)
     driver.navigate().to(url)
 
-
+    devtoolsClient.stopRecord()
     driver.getTitle
   }
 

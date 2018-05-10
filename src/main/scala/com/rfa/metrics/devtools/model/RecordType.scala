@@ -1,9 +1,9 @@
 package com.rfa.metrics.devtools.model
 
 sealed trait RecordType {
-  def name: String
+  def prefix: String
 
-  override def toString: String = name
+  override def toString: String = prefix
 }
 
-object Network extends RecordType { val name = "Network.enable" }
+object Network extends RecordType { val prefix = "Network." }

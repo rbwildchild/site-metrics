@@ -33,7 +33,10 @@ class Browser(tester: ActorRef) extends Actor {
   def ready(instrumenter: ChromeInstrumenter): Receive = {
     case execute: ExecuteTest => {
       execute.test match {
-        case pageLoadTest: PageLoadTest => doPageLoadTest(instrumenter, pageLoadTest.testConfiguration)
+        case pageLoadTest: PageLoadTest => {
+          val res = doPageLoadTest(instrumenter, pageLoadTest.testConfiguration)
+          println("LOAD: " + res)
+        }
         case transactionTest: TransactionTest => println("Do transaction: " + transactionTest.testConfiguration)
       }
     }

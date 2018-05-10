@@ -14,7 +14,10 @@ import com.rfa.metrics.devtools.model.CdpResponse
 import spray.json.{DefaultJsonProtocol, JsFalse, JsNumber, JsObject, JsString, JsTrue, JsValue, JsonFormat, JsonParser, JsonReader, RootJsonFormat}
 import spray.json.DefaultJsonProtocol._
 
+import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.concurrent.{Await, Future, Promise}
+
+import scala.concurrent.ExecutionContext.Implicits.global
 
 object CdpClient {
 
@@ -35,24 +38,26 @@ object CdpClient {
     }
   }
 
+  implicit val system = ActorSystem()
+  implicit val materializer = ActorMaterializer()
+  import system.dispatcher
+
   implicit val cdpCommandFormat: RootJsonFormat[CdpCommand] = jsonFormat3(CdpCommand)
   implicit val cdpResponseFormat: RootJsonFormat[CdpResponse] = jsonFormat4(CdpResponse)
 
-  def connect(url: String, commands: List[CdpCommand]): Unit = {
+  def apply(url: String): CdpClient = {
+    new CdpClient(connect(url))
+  }
+
+  private def connect(url: String): Tuple2[SourceQueueWithComplete[CdpCommand], Future[List[CdpResponse]]] = {
     {
 
-      implicit val system = ActorSystem()
-      implicit val materializer = ActorMaterializer()
-      import system.dispatcher
-
-      val processor: Sink[CdpResponse, Future[Done]] = Flow[CdpResponse].toMat(Sink.foreach(println))(Keep.right)
-
-      val incoming: Sink[Message, Future[Done]] = Flow[Message].map {
+      val incoming = Flow[Message].map {
         case t: TextMessage.Strict => cdpResponseFormat.read(JsonParser(t.text))
-      }.toMat(processor)(Keep.right)
+      }.toMat(Sink.collection[CdpResponse, List[CdpResponse]])(Keep.right)
 
-      val outgoing: Source[CdpCommand, Promise[Option[CdpCommand]]] =
-        Source(commands).concatMat(Source.maybe[CdpCommand])(Keep.right)
+      val outgoing: Source[CdpCommand, SourceQueueWithComplete[CdpCommand]] =
+        Source.queue[CdpCommand](1, OverflowStrategy.dropHead)
 
       val webSocketFlow = Http().webSocketClientFlow(WebSocketRequest(url))
 
@@ -73,6 +78,21 @@ object CdpClient {
 
       connected.onComplete(println)
 
+      (sourceQueue, sinkQueue)
+
     }
   }
+}
+
+class CdpClient(flow: Tuple2[SourceQueueWithComplete[CdpCommand], Future[List[CdpResponse]]])(implicit actorSystem: ActorSystem) {
+
+  def sendCommand(cdpCommand: CdpCommand) = flow._1.offer(cdpCommand)
+
+  def terminateFlow(timeout: FiniteDuration): Future[List[CdpResponse]] = {
+    actorSystem.scheduler.scheduleOnce(timeout) {
+      flow._1.complete()
+    }
+    flow._2
+  }
+
 }
