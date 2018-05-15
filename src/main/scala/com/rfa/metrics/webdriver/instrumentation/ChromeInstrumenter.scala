@@ -7,6 +7,9 @@ import com.rfa.metrics.timing.Time
 import com.rfa.metrics.webdriver.operation.TimedOperation
 import org.openqa.selenium.{By, WebDriver}
 
+import scala.concurrent.Await
+import scala.concurrent.duration.Duration
+
 object ChromeInstrumenter {
 
   def apply(driver: WebDriver): ChromeInstrumenter = {
@@ -34,7 +37,7 @@ class ChromeInstrumenter(webDriver: WebDriver, devtools: Devtools) {
 
   private def load (url: String, timeout: Long): String = {
     val devtoolsClient: Devtools.Client = devtools.attachTab()
-    devtoolsClient.startRecord()
+    Await.ready(devtoolsClient.startRecord(), Duration(1, TimeUnit.MINUTES))
 
     driver.manage().timeouts().implicitlyWait(timeout, TimeUnit.SECONDS)
     driver.navigate().to(url)

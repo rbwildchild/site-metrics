@@ -6,6 +6,7 @@ import com.rfa.metrics.devtools.model.{CdpConnection, CdpResponse}
 import spray.json.DefaultJsonProtocol.jsonFormat6
 import spray.json.{DefaultJsonProtocol, JsArray, JsonParser}
 import DefaultJsonProtocol._
+import akka.Done
 import com.rfa.metrics.cdp.CdpClient
 import com.rfa.metrics.cdp.model.CdpCommand
 import com.rfa.metrics.devtools.processor.LogProcessor
@@ -19,6 +20,10 @@ object Devtools {
   val commands = List(
     new CdpCommand(
       1,
+      "Page.enable"
+    ),
+    new CdpCommand(
+      2,
       "Network.enable"
     )
   )
@@ -28,8 +33,8 @@ object Devtools {
   }
 
   class Client(cdpClient: CdpClient) {
-    def startRecord() = {
-      commands.foreach(cdpClient.sendCommand)
+    def startRecord(): Future[Done] = {
+      cdpClient.sendCommands(commands)
     }
 
     def stopRecord() = {

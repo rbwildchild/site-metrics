@@ -26,7 +26,7 @@ object Main extends App {
   }
 
   private def executeTest(): Unit = {
-    testerActor ! ExecuteTest(new PageLoadTest(new TestConfiguration("https://itunes.apple.com", 30)))
+    testerActor ! ExecuteTest(new PageLoadTest(new TestConfiguration("https://twitter.com", 30)))
   }
 
 }

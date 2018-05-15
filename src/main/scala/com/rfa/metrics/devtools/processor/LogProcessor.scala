@@ -9,6 +9,7 @@ object LogProcessor {
 class LogProcessor(logs: List[CdpResponse]) {
   def getHAR(): String = {
     val har = ""
+    logs.foreach(println)
     har
   }
 }

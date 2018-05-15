@@ -5,7 +5,7 @@ import java.util.concurrent.TimeUnit
 import akka.actor.ActorSystem
 import akka.{Done, NotUsed}
 import akka.http.scaladsl.Http
-import akka.stream.{ActorMaterializer, Attributes, OverflowStrategy}
+import akka.stream.{ActorMaterializer, Attributes, OverflowStrategy, QueueOfferResult}
 import akka.stream.scaladsl._
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.ws._
@@ -16,7 +16,6 @@ import spray.json.DefaultJsonProtocol._
 
 import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.concurrent.{Await, Future, Promise}
-
 import scala.concurrent.ExecutionContext.Implicits.global
 
 object CdpClient {
@@ -49,23 +48,32 @@ object CdpClient {
     new CdpClient(connect(url))
   }
 
-  private def connect(url: String): Tuple2[SourceQueueWithComplete[CdpCommand], Future[List[CdpResponse]]] = {
+  private def connect(url: String):
+  Tuple3[SourceQueueWithComplete[CdpCommand], SinkQueueWithCancel[CdpResponse], Future[List[CdpResponse]]] = {
     {
 
-      val incoming = Flow[Message].map {
-        case t: TextMessage.Strict => cdpResponseFormat.read(JsonParser(t.text))
-      }.toMat(Sink.collection[CdpResponse, List[CdpResponse]])(Keep.right)
+      val collection = Flow[CdpResponse]
+        .filter(_.id.isEmpty)
+        .toMat(Sink.collection[CdpResponse, List[CdpResponse]])(Keep.right)
+
+      val queue = Flow[CdpResponse]
+        .filter(_.id.nonEmpty)
+        .toMat(Sink.queue[CdpResponse])(Keep.right)
 
       val outgoing: Source[CdpCommand, SourceQueueWithComplete[CdpCommand]] =
         Source.queue[CdpCommand](1, OverflowStrategy.dropHead)
 
       val webSocketFlow = Http().webSocketClientFlow(WebSocketRequest(url))
+        .map {
+          case t: TextMessage.Strict => cdpResponseFormat.read(JsonParser(t.text))
+        }
 
-      val ((sourceQueue, upgradeResponse), sinkQueue) =
+      val (((sourceQueue, upgradeResponse), sinkQueue), sinkCollection) =
       outgoing
         .map(c => TextMessage(cdpCommandFormat.write(c).toString()))
         .viaMat(webSocketFlow)(Keep.both)
-        .toMat(incoming)(Keep.both)
+        .alsoToMat(queue)(Keep.both)
+        .toMat(collection)(Keep.both)
         .run()
 
       val connected = upgradeResponse.flatMap { upgrade =>
@@ -78,21 +86,38 @@ object CdpClient {
 
       connected.onComplete(println)
 
-      (sourceQueue, sinkQueue)
+      (sourceQueue, sinkQueue, sinkCollection)
 
     }
   }
 }
 
-class CdpClient(flow: Tuple2[SourceQueueWithComplete[CdpCommand], Future[List[CdpResponse]]])(implicit actorSystem: ActorSystem) {
+class CdpClient(flow: Tuple3[SourceQueueWithComplete[CdpCommand], SinkQueueWithCancel[CdpResponse], Future[List[CdpResponse]]])
+               (implicit actorSystem: ActorSystem, materializer: ActorMaterializer) {
 
-  def sendCommand(cdpCommand: CdpCommand) = flow._1.offer(cdpCommand)
+  def sendCommands(cdpCommands: List[CdpCommand]): Future[Done] = {
+    Source(cdpCommands)
+      .mapAsync(parallelism = 1)(sendCommand)
+      .toMat(Sink.ignore)(Keep.right)
+      .run()
+  }
+
+  def sendCommand(cdpCommand: CdpCommand): Future[Done] = flow._1.offer(cdpCommand).flatMap {
+    case QueueOfferResult.Enqueued => flow._2.pull()
+    case _ => Future.failed(new Exception("Error when offering command"))
+  }.flatMap {
+    case s: Some[CdpResponse] => {
+      if (s.nonEmpty && s.get.id.get == cdpCommand.id) Future.successful(Done)
+      else Future.failed(new Exception("Error id's don't match"))
+    }
+    case _ => Future.failed(new Exception("Error when pulling response"))
+  }
 
   def terminateFlow(timeout: FiniteDuration): Future[List[CdpResponse]] = {
     actorSystem.scheduler.scheduleOnce(timeout) {
       flow._1.complete()
     }
-    flow._2
+    flow._3
   }
 
 }
