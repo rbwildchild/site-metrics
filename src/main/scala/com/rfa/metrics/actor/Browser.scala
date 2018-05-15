@@ -1,12 +1,18 @@
 package com.rfa.metrics.actor
 
+import akka.Done
 import akka.actor.{Actor, ActorRef}
 import com.rfa.metrics.actor.Browser._
-import com.rfa.metrics.actor.Tester.{BrowserReady, ExecuteTest}
+import com.rfa.metrics.actor.Tester.{BrowserReady, ExecuteTest, TestFinished}
 import com.rfa.metrics.test.model._
 import com.rfa.metrics.timing.Time
 import com.rfa.metrics.webdriver.driver.ChromeWebDriver
 import com.rfa.metrics.webdriver.instrumentation.ChromeInstrumenter
+
+import scala.concurrent.Future
+import scala.util.Success
+
+import scala.concurrent.ExecutionContext.Implicits.global
 
 object Browser {
   case class StartBrowser()
@@ -34,15 +40,16 @@ class Browser(tester: ActorRef) extends Actor {
     case execute: ExecuteTest => {
       execute.test match {
         case pageLoadTest: PageLoadTest => {
-          val res = doPageLoadTest(instrumenter, pageLoadTest.testConfiguration)
-          println("LOAD: " + res)
+          doPageLoadTest(instrumenter, pageLoadTest.testConfiguration)
         }
         case transactionTest: TransactionTest => println("Do transaction: " + transactionTest.testConfiguration)
       }
     }
   }
 
-  def doPageLoadTest(instrumenter: ChromeInstrumenter, testConfiguration: TestConfiguration): (String, Time) = {
-    instrumenter.loadPage(testConfiguration.url, testConfiguration.timeout)
+  def doPageLoadTest(instrumenter: ChromeInstrumenter, testConfiguration: TestConfiguration) = {
+    instrumenter.loadPage(testConfiguration.url, testConfiguration.timeout).onComplete {
+      case s: Success[String] => tester ! TestFinished(s.get)
+    }
   }
 }

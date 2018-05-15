@@ -33,18 +33,25 @@ object Devtools {
   }
 
   class Client(cdpClient: CdpClient) {
+
+    private var responseList = List[CdpResponse]()
+
     def startRecord(): Future[Done] = {
       cdpClient.sendCommands(commands)
     }
 
     def stopRecord() = {
-      cdpClient.terminateFlow(Duration(3, TimeUnit.SECONDS)).onComplete {
-        case s: Success[List[CdpResponse]] => {
-          val har = LogProcessor(s.get).getHAR()
-          println("HAR: " + har)
+      cdpClient.terminateFlow(Duration(3, TimeUnit.SECONDS)).flatMap {
+        case s: List[CdpResponse] => {
+          responseList = s
+          Future.successful(Done)
         }
-        case f: Failure[List[CdpResponse]] => println("Fail!: " + f)
+        case _ => Future.failed(new Exception("Error"))
       }
+    }
+
+    def getHar(): String = {
+      LogProcessor(responseList).getHAR()
     }
   }
 }
