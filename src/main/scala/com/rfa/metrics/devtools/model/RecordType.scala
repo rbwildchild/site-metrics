@@ -7,3 +7,4 @@ sealed trait RecordType {
 }
 
 object Network extends RecordType { val prefix = "Network." }
+object Page extends RecordType { val prefix = "Page." }

@@ -65,7 +65,9 @@ object CdpClient {
 
       val webSocketFlow = Http().webSocketClientFlow(WebSocketRequest(url))
         .map {
-          case t: TextMessage.Strict => cdpResponseFormat.read(JsonParser(t.text))
+          case t: TextMessage.Strict => {
+            cdpResponseFormat.read(JsonParser(t.text))
+          }
         }
 
       val (((sourceQueue, upgradeResponse), sinkQueue), sinkCollection) =
@@ -116,6 +118,7 @@ class CdpClient(flow: Tuple3[SourceQueueWithComplete[CdpCommand], SinkQueueWithC
   def terminateFlow(timeout: FiniteDuration): Future[List[CdpResponse]] = {
     actorSystem.scheduler.scheduleOnce(timeout) {
       flow._1.complete()
+      flow._2.cancel()
     }
     flow._3
   }
