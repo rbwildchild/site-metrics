@@ -25,6 +25,11 @@ object Devtools {
     new CdpCommand(
       2,
       "Network.enable"
+    ),
+    new CdpCommand(
+      3,
+      "Target.setDiscoverTargets",
+      Some(Map(("discover", true)))
     )
   )
 

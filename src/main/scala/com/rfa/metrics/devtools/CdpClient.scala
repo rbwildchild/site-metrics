@@ -28,7 +28,13 @@ object CdpClient {
       case b: Boolean if b == false => JsFalse
     }
     def read(value: JsValue) = value match {
-      case JsNumber(n) => n.intValue()
+      case JsNumber(n) => {
+        if (n.isValidInt)
+            n.intValue()
+        else if (n.isValidLong)
+            n.longValue()
+        else n.doubleValue()
+      }
       case JsString(s) => s
       case JsTrue => true
       case JsFalse => false

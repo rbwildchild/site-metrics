@@ -19,7 +19,7 @@ class LogProcessor(logs: List[CdpResponse]) {
       .filter(_.method.get.startsWith(Network.prefix))
       .groupBy[String](_.getParam[String]("requestId"))
       //.mapValues[HarEntry](HarEntryProcessor(_).start)
-      .foreach((t: (String, List[CdpResponse])) => HarEntryProcessor(t._2).start)
+      .foreach((t: (String, List[CdpResponse])) => HarEntryProcessor(t._2, 0).start)
     har
   }
 
