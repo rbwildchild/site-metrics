@@ -5,13 +5,18 @@ import scala.collection.immutable.Map
 trait ParamResponse {
   def params: Option[Map[String, Any]]
 
-  def getParam[T](key: String): T = {
+  def getParam[T](key: String): Option[T] = {
     try {
-      params.get.get(key).getOrElse(None).asInstanceOf[T]
+      val value = if (params.nonEmpty) params.get.get(key) else None
+      if (value.nonEmpty) value.asInstanceOf[Option[T]] else None
     } catch {
       case cce: ClassCastException => {
         println("Error while casting: " + cce.getMessage)
         throw cce
+      }
+      case e: Exception => {
+        println("Error while casting: " + e.getMessage)
+        throw e
       }
     }
   }
