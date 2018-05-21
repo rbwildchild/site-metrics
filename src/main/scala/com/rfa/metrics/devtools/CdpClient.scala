@@ -20,32 +20,11 @@ import scala.concurrent.ExecutionContext.Implicits.global
 
 object CdpClient {
 
-  implicit object AnyJsonFormat extends JsonFormat[Any] {
-    def write(x: Any) = x match {
-      case n: Int  => JsNumber(n)
-      case s: String => JsString(s)
-      case b: Boolean if b == true => JsTrue
-      case b: Boolean if b == false => JsFalse
-    }
-    def read(value: JsValue) = value match {
-      case JsNumber(n) => {
-        if (n.isValidInt)
-            n.intValue()
-        else if (n.isValidLong)
-            n.longValue()
-        else n.doubleValue()
-      }
-      case JsString(s) => s
-      case JsTrue => true
-      case JsFalse => false
-      case JsObject(s) => s
-      case _ => None
-    }
-  }
-
   implicit val system = ActorSystem()
   implicit val materializer = ActorMaterializer()
   import system.dispatcher
+
+  import com.rfa.metrics.AnyJsonFormat
 
   implicit val cdpCommandFormat: RootJsonFormat[CdpCommand] = jsonFormat3(CdpCommand)
   implicit val cdpResponseFormat: RootJsonFormat[CdpResponse] = jsonFormat4(CdpResponse)
