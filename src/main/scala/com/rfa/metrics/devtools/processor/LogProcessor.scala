@@ -17,11 +17,7 @@ class LogProcessor(logs: List[CdpResponse]) {
       .filter((c: CdpResponse) => c.method.get.startsWith(RecordType.Page.prefix) || c.method.get.startsWith(RecordType.Target.prefix))
     )
 
-    logs
-      .filter(_.method.get.startsWith(Network.prefix))
-      .groupBy[String](_.getParam[String]("requestId").getOrElse(""))
-      //.mapValues[HarEntry](HarEntryProcessor(_).start)
-      .foreach((t: (String, List[CdpResponse])) => HarEntryProcessor(t._2, pages(0)).start)
+    HarProcessor(logs.filter(_.method.get.startsWith(Network.prefix)), pages).start
     har
   }
 
