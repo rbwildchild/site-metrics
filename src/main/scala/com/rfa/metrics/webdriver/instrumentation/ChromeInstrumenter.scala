@@ -18,8 +18,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 object ChromeInstrumenter {
 
   def apply(driver: WebDriver): ChromeInstrumenter = {
-    val port = getCDPPort(driver)
-    val devtoolsClient = Devtools(port)
+    val devtoolsClient = Devtools(9222)
     openBlank(driver)
     new ChromeInstrumenter(driver, devtoolsClient)
   }
@@ -28,12 +27,6 @@ object ChromeInstrumenter {
     driver.get("about:blank")
   }
 
-  def getCDPPort (webDriver: WebDriver): Int = {
-    webDriver.navigate().to("chrome://version")
-    webDriver.getPageSource
-    val cmdLine = webDriver.findElement(By.id("command_line")).getText
-    Option(cmdLine.split(" ").filter(_.contains("--remote-debugging-port"))(0)).getOrElse("=").split("=")(1).toInt
-  }
 }
 
 class ChromeInstrumenter(webDriver: WebDriver, devtools: Devtools) {

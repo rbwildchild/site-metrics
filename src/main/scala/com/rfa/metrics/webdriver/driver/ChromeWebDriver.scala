@@ -10,7 +10,7 @@ object ChromeWebDriver {
 
   private def createService : ChromeDriverService = {
     new ChromeDriverService.Builder()
-      .usingDriverExecutable(new File(System.getProperty("user.home") + "/Documents/projects/browserbot/support/chromedriver"))
+      .usingDriverExecutable(new File("support/chromedriver"))
       .usingAnyFreePort()
       .build()
   }
@@ -20,8 +20,8 @@ object ChromeWebDriver {
     val caps: DesiredCapabilities = DesiredCapabilities.chrome()
     val options: ChromeOptions = new ChromeOptions
     options.setBinary(chrome)
-    //options.addArguments("--headless")
-    //options.addArguments("--disable-gpu")
+    options.addArguments("--remote-debugging-port=9222")
+    options.addArguments("--headless")
     caps.setCapability(ChromeOptions.CAPABILITY, options)
     caps
   }
