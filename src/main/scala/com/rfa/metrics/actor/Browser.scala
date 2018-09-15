@@ -42,13 +42,21 @@ class Browser(tester: ActorRef) extends Actor {
         case pageLoadTest: PageLoadTest => {
           doPageLoadTest(instrumenter, pageLoadTest.testConfiguration)
         }
-        case transactionTest: TransactionTest => println("Do transaction: " + transactionTest.testConfiguration)
+        case transactionTest: TransactionTest => {
+          doTransactionTest(instrumenter, transactionTest);
+        }
       }
     }
   }
 
   def doPageLoadTest(instrumenter: ChromeInstrumenter, testConfiguration: TestConfiguration) = {
     instrumenter.loadPage(testConfiguration.url, testConfiguration.timeout).onComplete {
+      case s: Success[String] => tester ! TestFinished(s.get)
+    }
+  }
+
+  def doTransactionTest(instrumenter: ChromeInstrumenter, transactionTest: TransactionTest) = {
+    instrumenter.execute(transactionTest).onComplete {
       case s: Success[String] => tester ! TestFinished(s.get)
     }
   }

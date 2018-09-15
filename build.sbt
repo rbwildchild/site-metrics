@@ -9,7 +9,7 @@ scalaVersion := "2.12.3"
 scalacOptions ++= Seq("-deprecation", "-feature")
 
 libraryDependencies ++= Seq(
-  "org.seleniumhq.selenium" % "selenium-java" % "3.13.0",
+  "org.seleniumhq.selenium" % "selenium-server" % "2.44.0",
   "com.typesafe.akka" %% "akka-actor" % "2.5.12",
   "com.typesafe.akka" %% "akka-stream" % "2.5.12",
   "com.typesafe.akka" %% "akka-http" % "10.1.1",

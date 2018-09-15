@@ -12,6 +12,7 @@ package object metrics {
   implicit object AnyJsonFormat extends JsonFormat[Any] {
     def write(x: Any) = x match {
       case n: Int  => JsNumber(n)
+      case n: Double  => JsNumber(n)
       case s: String => JsString(s)
       case b: Boolean if b == true => JsTrue
       case b: Boolean if b == false => JsFalse

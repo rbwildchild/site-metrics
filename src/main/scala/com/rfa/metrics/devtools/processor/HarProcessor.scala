@@ -33,8 +33,8 @@ class HarProcessor(log: List[CdpResponse], pages: Array[Page]) {
       .foldLeft(new Har)(processEvent)
 
     val harlog = har.buildLog()
-    harlog.pages.foreach(println)
-    harlog.entries.foreach(println)
+    //harlog.pages.foreach(println)
+    //harlog.entries.foreach(println)
 
     har
   }

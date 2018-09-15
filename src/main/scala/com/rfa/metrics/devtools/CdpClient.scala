@@ -51,7 +51,11 @@ object CdpClient {
       val webSocketFlow = Http().webSocketClientFlow(WebSocketRequest(url))
         .map {
           case t: TextMessage.Strict => {
+            println(t.text)
             cdpResponseFormat.read(JsonParser(t.text))
+          }
+          case s: TextMessage.Streamed => {
+            cdpResponseFormat.read(JsonParser(s.getStrictText))
           }
         }
 

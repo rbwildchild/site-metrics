@@ -21,7 +21,7 @@ object ChromeWebDriver {
     val options: ChromeOptions = new ChromeOptions
     options.setBinary(chrome)
     options.addArguments("--remote-debugging-port=9222")
-    options.addArguments("--headless")
+    //options.addArguments("--headless")
     caps.setCapability(ChromeOptions.CAPABILITY, options)
     caps
   }
